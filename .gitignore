@@ -1,3 +1,6 @@
+# Tools with hardcoded offsets
+tools/
+
 # Build artifacts
 bin/
 obj/

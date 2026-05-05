@@ -49,7 +49,7 @@ build.bat
 
 ## 使用
 
-1. 使用 Rei-Universal-Dumper 对目标游戏生成 SDK
+1. 使用 Dumper 对目标游戏生成 SDK
 2. 编译本项目得到 DLL
 3. 将 DLL 注入目标游戏进程
 4. 使用热键切换时装：
@@ -109,7 +109,7 @@ CurrentFashionSetter/
 
 ## 依赖
 
-- [Rei-Universal-Dumper](https://github.com/anthropic/Rei-Universal-Dumper) — UE SDK 生成工具
+- Dumper — UE SDK 生成工具（对目标游戏生成 C++ SDK）
 - Windows x64 · Visual Studio 2022 · C++20
 
 ---
