@@ -2,9 +2,9 @@
 
 # NevernessToEverness-Costume-Mod
 
-**Runtime costume/appearance hot-swap DLL for Neverness to Everness**
+**Runtime costume unlocker & anti-blur patch for Neverness to Everness**
 
-*DLL injection · Numpad hotkey switching · UE SDK integration · AntiFade camera patch*
+*Unlock all costumes without conditions · Anti-blur rendering · Numpad hotkey switching*
 
 ![C++](https://img.shields.io/badge/C%2B%2B-20-blue?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-lightgrey?style=flat-square)
@@ -27,11 +27,8 @@
 
 | 功能 | 说明 |
 |:-----|:-----|
-| **热键切换** | Numpad 8 / Numpad 2 切换上一套/下一套时装（含未解锁时装） |
-| **运行时应用** | 通过 UE SDK 直接操作 `UHTPlayerAppearance`，无需重启游戏 |
-| **自动加载** | 资源懒加载 + `LoadAsset_Blocking` 确保外观资源就绪 |
-| **AntiFade 补丁** | 反虚化补丁，解除远景模糊限制 |
-| **完整日志** | 所有操作写入 `C:\Rei-Dumper\CurrentFashionSetter.log` |
+| **动态切换未解锁时装** | 无需氪金/满足解锁条件，自由切换所有角色时装 |
+| **反虚化** | 解除远景模糊限制，全距离清晰渲染 |
 
 ---
 
