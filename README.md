@@ -4,7 +4,7 @@
 
 **Runtime costume unlocker & anti-blur patch for Neverness to Everness**
 
-*Unlock all costumes without conditions · Anti-blur rendering · Numpad hotkey switching*
+*Unlock all costumes without conditions · Disable character blur censorship · Numpad hotkey switching*
 
 ![C++](https://img.shields.io/badge/C%2B%2B-20-blue?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-lightgrey?style=flat-square)
@@ -28,7 +28,7 @@
 | 功能 | 说明 |
 |:-----|:-----|
 | **动态切换未解锁时装** | 无需氪金/满足解锁条件，自由切换所有角色时装 |
-| **反虚化** | 解除远景模糊限制，全距离清晰渲染 |
+| **反虚化** | 解除镜头拉远后角色虚化和谐，自由观察角色外观 |
 
 ---
 
