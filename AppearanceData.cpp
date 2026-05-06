@@ -55,10 +55,16 @@ namespace CurrentFashionSetter
 
         SDK::APlayerController* controller = localPlayerBase->PlayerController;
         SDK::APawn* pawn = controller->AcknowledgedPawn;
-        LogLine(log, "AcknowledgedPawn=" + PointerString(pawn));
         if (!IsValidObject(pawn))
         {
-            LogLine(log, "invalid acknowledged pawn");
+            LogLine(log, "AcknowledgedPawn is null, falling back to controller->Pawn");
+            pawn = controller->Pawn;
+        }
+        LogLine(log, "pawn=" + PointerString(pawn)
+            + " source=" + (pawn == controller->AcknowledgedPawn ? "AcknowledgedPawn" : "Pawn"));
+        if (!IsValidObject(pawn))
+        {
+            LogLine(log, "invalid pawn");
             return nullptr;
         }
 
@@ -208,7 +214,19 @@ namespace CurrentFashionSetter
 
         if (defaultCandidate != nullptr)
         {
-            candidates.push_back(*defaultCandidate);
+            bool bAlreadyExists = false;
+            for (const auto& candidate : candidates)
+            {
+                if (candidate.RowName == defaultCandidate->RowName)
+                {
+                    bAlreadyExists = true;
+                    break;
+                }
+            }
+            if (!bAlreadyExists)
+            {
+                candidates.push_back(*defaultCandidate);
+            }
         }
 
         std::sort(candidates.begin(), candidates.end(), [](const FashionCandidate& left, const FashionCandidate& right)

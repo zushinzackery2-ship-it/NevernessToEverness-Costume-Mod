@@ -4,7 +4,7 @@
 
 **Runtime costume unlocker & anti-blur patch for Neverness to Everness**
 
-*Unlock all costumes without conditions · Disable character blur censorship · Numpad hotkey switching*
+*Unlock all costumes without conditions · Disable character blur censorship · Numpad hotkey switching · Single-callback architecture · Exception-safe ProcessEvent*
 
 ![C++](https://img.shields.io/badge/C%2B%2B-20-blue?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-lightgrey?style=flat-square)
@@ -108,6 +108,18 @@ CurrentFashionSetter/
 
 - Dumper — UE SDK 生成工具（对目标游戏生成 C++ SDK）
 - Windows x64 · Visual Studio 2022 · C++20
+
+---
+
+---
+
+## 最近更新
+
+- **PostRender 回调合并** — AntiFade 与换装回调合二为一，消除冗余注册/注销
+- **AntiFade 一次性保障** — 全退出路径（null / 成功 / stats=0 / SEH crash）均标记完成，杜绝无限重试
+- **CallProcessEvent 统一** — 两个 ProcessEvent 包装器统一为 `__finally` 守卫模式，确保 FunctionFlags 必恢复
+- **FindClassByName 优化** — AntiFade 侧换用 SDK hash 查找，替代 O(n) 全量 GObjects 扫描
+- **角色解析 fallback** — Pawn 解析链路统一，AcknowledgedPawn → Pawn fallback 对齐
 
 ---
 

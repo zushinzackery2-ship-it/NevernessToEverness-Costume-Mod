@@ -101,8 +101,46 @@ namespace CurrentFashionSetter
             InterlockedExchange(&context->Busy, 0);
         }
 
-        void CALLBACK KeyMonitorPostRenderCallback(SDK::UGameViewportClient*, SDK::UCanvas*, void* context)
+        volatile bool g_AntiFadeDone = false;
+
+        void RunAntiFadeOnce()
         {
+            const char* State = nullptr;
+            const AntiFadeMod::FLocalContext Context = AntiFadeMod::ResolveLocalContext(&State);
+            if (Context.CameraManager == nullptr)
+            {
+                g_AntiFadeDone = true;
+                return;
+            }
+
+            __try
+            {
+                AntiFadeMod::FPatchStats Stats = AntiFadeMod::PatchAllCameraManagers(Context.CameraManager);
+                AntiFadeMod::ApplySelfSettingCamera(Context.CameraManager, Stats);
+                AntiFadeMod::RestoreOpacityOnce(Context.Character, Stats);
+
+                if (Stats.CameraManagers > 0 || Stats.SelfSettingCalls > 0)
+                {
+                    AntiFadeMod::PrintStats(Context.CameraManager, Context.Character, Stats);
+                    WriteRawLogLine("[AntiFadeMod] patch applied");
+                }
+
+                g_AntiFadeDone = true;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
+                WriteRawLogLine("[AntiFadeMod] patch failed with SEH, giving up");
+                g_AntiFadeDone = true;
+            }
+        }
+
+        void CALLBACK PostRenderCallback(SDK::UGameViewportClient*, SDK::UCanvas*, void* context)
+        {
+            if (!g_AntiFadeDone)
+            {
+                RunAntiFadeOnce();
+            }
+
             auto* monitor = static_cast<KeyMonitorContext*>(context);
             if (monitor == nullptr)
             {
@@ -126,42 +164,6 @@ namespace CurrentFashionSetter
                 : "[CurrentFashionSetter] VK_NUMPAD2 pressed: switch next fashion");
             RunSwapGuarded(direction, monitor);
         }
-
-        SDK::PostRenderHook::RegistrationHandle g_AntiFadeHandle = 0;
-
-        void CALLBACK AntiFadePostRenderCallback(SDK::UGameViewportClient*, SDK::UCanvas*, void*)
-        {
-            const char* State = nullptr;
-            const AntiFadeMod::FLocalContext Context = AntiFadeMod::ResolveLocalContext(&State);
-            if (Context.CameraManager == nullptr)
-            {
-                return;
-            }
-
-            __try
-            {
-                AntiFadeMod::FPatchStats Stats = AntiFadeMod::PatchAllCameraManagers(Context.CameraManager);
-                AntiFadeMod::ApplySelfSettingCamera(Context.CameraManager, Stats);
-                AntiFadeMod::RestoreOpacityOnce(Context.Character, Stats);
-
-                if (Stats.CameraManagers > 0 || Stats.SelfSettingCalls > 0)
-                {
-                    AntiFadeMod::PrintStats(Context.CameraManager, Context.Character, Stats);
-                    WriteRawLogLine("[AntiFadeMod] patch applied, unregistering callback");
-                }
-                else
-                {
-                    return;
-                }
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER)
-            {
-                return;
-            }
-
-            SDK::PostRenderHook::UnregisterPostRenderCallback(g_AntiFadeHandle);
-            g_AntiFadeHandle = 0;
-        }
     }
 
     void NotifyKeyPress(int direction)
@@ -181,7 +183,7 @@ namespace CurrentFashionSetter
         }
 
         handle = SDK::PostRenderHook::RegisterPostRenderCallback(
-            &KeyMonitorPostRenderCallback,
+            &PostRenderCallback,
             &context,
             &LogSdkMessage);
         if (handle == 0)
@@ -191,17 +193,6 @@ namespace CurrentFashionSetter
         }
 
         WriteRawLogLine("[CurrentFashionSetter] fashion hotkey monitor registered: NUMPAD8 previous, NUMPAD2 next");
-
-        g_AntiFadeHandle = SDK::PostRenderHook::RegisterPostRenderCallback(
-            &AntiFadePostRenderCallback, nullptr, &LogSdkMessage, nullptr);
-        if (g_AntiFadeHandle == 0)
-        {
-            WriteRawLogLine("[AntiFadeMod] RegisterPostRenderCallback failed");
-        }
-        else
-        {
-            WriteRawLogLine("[AntiFadeMod] PostRender callback registered, waiting for camera manager...");
-        }
 
         return ERROR_SUCCESS;
     }

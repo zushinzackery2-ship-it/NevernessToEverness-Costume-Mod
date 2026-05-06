@@ -45,27 +45,7 @@ SDK::UClass* FindClassByName(const char* ClassName)
         return nullptr;
     }
 
-    SDK::TUObjectArray* Objects = SDK::UObject::GObjects.GetTypedPtr();
-    if (Objects == nullptr)
-    {
-        return nullptr;
-    }
-
-    for (int Index = 0; Index < Objects->Num(); ++Index)
-    {
-        SDK::UObject* Object = Objects->GetByIndex(Index);
-        if (Object == nullptr || Object->Class == nullptr)
-        {
-            continue;
-        }
-
-        if (Object->Name.ToString() == ClassName && Object->Class->Name.ToString() == "Class")
-        {
-            return static_cast<SDK::UClass*>(Object);
-        }
-    }
-
-    return nullptr;
+    return SDK::BasicFilesImpleUtils::FindClassByName(std::string(ClassName), false);
 }
 
 bool IsClassOrChildOf(const SDK::UClass* TypeClass, const SDK::UClass* BaseClass)

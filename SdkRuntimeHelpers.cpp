@@ -13,13 +13,21 @@ namespace CurrentFashionSetter
         return buffer;
     }
 
-    DWORD InvokeProcessEventSeh(SDK::UObject* object, SDK::UFunction* function, void* params)
+    DWORD InvokeProcessEventSeh(SDK::UObject* object, SDK::UFunction* function, void* params, bool* called)
     {
         DWORD exceptionCode = 0;
+        *called = false;
 
         __try
         {
-            object->ProcessEvent(function, params);
+            __try
+            {
+                object->ProcessEvent(function, params);
+                *called = true;
+            }
+            __finally
+            {
+            }
         }
         __except (exceptionCode = GetExceptionCode(), EXCEPTION_EXECUTE_HANDLER)
         {
@@ -49,7 +57,10 @@ namespace CurrentFashionSetter
 
         const uint32_t flags = function->FunctionFlags;
         function->FunctionFlags |= 0x400;
-        const DWORD exceptionCode = InvokeProcessEventSeh(object, function, params);
+
+        bool called = false;
+        const DWORD exceptionCode = InvokeProcessEventSeh(object, function, params, &called);
+
         function->FunctionFlags = flags;
 
         if (exceptionCode != 0)
@@ -60,8 +71,12 @@ namespace CurrentFashionSetter
             return false;
         }
 
-        LogLine(log, "called " + function->GetName());
-        return true;
+        if (called)
+        {
+            LogLine(log, "called " + function->GetName());
+        }
+
+        return called;
     }
 
     bool IsPlayerAppearanceObject(const SDK::UObject* object)
