@@ -292,4 +292,52 @@ namespace CurrentFashionSetter
     {
         return SelectFashionByDirection(table, characterId, currentFashionId, nullptr, direction, target, log);
     }
+
+    bool FindFashionCandidateById(SDK::UDataTable* table, const SDK::FName& characterId,
+        const SDK::FName& targetFashionId, const FashionCandidate* defaultCandidate,
+        FashionCandidate& target, std::ofstream& log)
+    {
+        if (!IsValidObject(table))
+        {
+            LogLine(log, "AppearanceDataTable is invalid");
+            return false;
+        }
+
+        for (const auto& row : table->RowMap)
+        {
+            const SDK::FName& rowName = row.Key();
+            const auto* data = reinterpret_cast<const SDK::FStaticAppearanceData*>(row.Value());
+            if (data == nullptr)
+            {
+                continue;
+            }
+
+            if (data->AppearanceType != SDK::EAppearanceType::Fashion || data->CharacterID != characterId)
+            {
+                continue;
+            }
+
+            const SDK::UObject* scriptStruct = nullptr;
+            const SDK::FFashionData* fashionData = GetFashionData(data, &scriptStruct);
+            if (fashionData == nullptr)
+            {
+                continue;
+            }
+
+            if (rowName == targetFashionId)
+            {
+                target = { rowName.ToString(), rowName, data, fashionData, scriptStruct };
+                return true;
+            }
+        }
+
+        if (defaultCandidate != nullptr && defaultCandidate->RowName == targetFashionId)
+        {
+            target = *defaultCandidate;
+            return true;
+        }
+
+        LogLine(log, "fashion candidate not found by id=" + targetFashionId.ToString());
+        return false;
+    }
 }

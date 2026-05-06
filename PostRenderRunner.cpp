@@ -3,6 +3,7 @@
 #include "PostRenderRunner.h"
 
 #include "FashionSetter.h"
+#include "AppearanceData.h"
 #include "Log.h"
 #include "AntiFadeMod/CameraPatch.hpp"
 #include "AntiFadeMod/SdkHelpers.hpp"
@@ -10,6 +11,9 @@
 
 namespace CurrentFashionSetter
 {
+    volatile bool g_AntiFadeEverApplied = false;
+    SDK::FName g_LastFashionId;
+
     namespace
     {
         constexpr int kUpDirection = -1;
@@ -101,7 +105,16 @@ namespace CurrentFashionSetter
             InterlockedExchange(&context->Busy, 0);
         }
 
-        volatile bool g_AntiFadeDone = false;
+        bool IsAntiFadeIntact(SDK::AHTPlayerCameraManager* cm)
+        {
+            if (cm == nullptr)
+            {
+                return false;
+            }
+
+            return cm->RunSettings.PlayerFadeDistance.TargetValue == 0.0f
+                && cm->RunSettings.PlayerHideDistance.TargetValue == 0.0f;
+        }
 
         void RunAntiFadeOnce()
         {
@@ -109,7 +122,6 @@ namespace CurrentFashionSetter
             const AntiFadeMod::FLocalContext Context = AntiFadeMod::ResolveLocalContext(&State);
             if (Context.CameraManager == nullptr)
             {
-                g_AntiFadeDone = true;
                 return;
             }
 
@@ -124,22 +136,48 @@ namespace CurrentFashionSetter
                     AntiFadeMod::PrintStats(Context.CameraManager, Context.Character, Stats);
                     WriteRawLogLine("[AntiFadeMod] patch applied");
                 }
-
-                g_AntiFadeDone = true;
             }
             __except (EXCEPTION_EXECUTE_HANDLER)
             {
                 WriteRawLogLine("[AntiFadeMod] patch failed with SEH, giving up");
-                g_AntiFadeDone = true;
+            }
+        }
+
+        void MaintainMods()
+        {
+            const AntiFadeMod::FLocalContext ctx = AntiFadeMod::ResolveLocalContext(nullptr);
+
+            if (ctx.CameraManager != nullptr)
+            {
+                if (!g_AntiFadeEverApplied)
+                {
+                    RunAntiFadeOnce();
+                    g_AntiFadeEverApplied = true;
+                }
+                else if (!IsAntiFadeIntact(ctx.CameraManager))
+                {
+                    WriteRawLogLine("[AntiFadeMod] drift detected, re-patching");
+                    RunAntiFadeOnce();
+                }
+            }
+
+            if (!g_LastFashionId.IsNone() && ctx.Character != nullptr)
+            {
+                auto* playerChar = static_cast<SDK::AHTPlayerCharacter*>(ctx.Character);
+                if (IsValidObject(reinterpret_cast<SDK::UObject*>(playerChar)))
+                {
+                    if (playerChar->FashionID != g_LastFashionId)
+                    {
+                        WriteRawLogLine("[FashionDrift] drift detected, re-applying");
+                        ApplyFashionById(g_LastFashionId);
+                    }
+                }
             }
         }
 
         void CALLBACK PostRenderCallback(SDK::UGameViewportClient*, SDK::UCanvas*, void* context)
         {
-            if (!g_AntiFadeDone)
-            {
-                RunAntiFadeOnce();
-            }
+            MaintainMods();
 
             auto* monitor = static_cast<KeyMonitorContext*>(context);
             if (monitor == nullptr)

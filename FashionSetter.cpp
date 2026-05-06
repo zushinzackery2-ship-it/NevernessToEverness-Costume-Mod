@@ -8,6 +8,8 @@
 
 namespace CurrentFashionSetter
 {
+    extern SDK::FName g_LastFashionId;
+
     struct OnRepFashionParams
     {
         SDK::FName OldFashionID;
@@ -248,6 +250,35 @@ namespace CurrentFashionSetter
         }
     }
 
+    void ApplyFashionCandidateToCharacter(SDK::AHTPlayerCharacter* character, const SDK::FName& oldFashion, const FashionCandidate& target, std::ofstream& log)
+    {
+        SDK::UHTPlayerAppearance* targetAppearance = LoadTargetAppearance(target, log);
+        LogTargetAppearanceDetails(targetAppearance, log);
+        if (!IsPlayerAppearanceObject(targetAppearance))
+        {
+            LogLine(log, "target appearance is unavailable; skip fashion apply to avoid host fatal exit");
+            return;
+        }
+
+        SyncCharacterAppearanceFields(character, target, targetAppearance, log);
+        LogCharacterAppearanceState(character, "after direct field sync", log);
+
+        SDK::UFunction* onRepFashion = character->Class->GetFunction("HTPlayerCharacter", "OnRep_FashionID");
+        OnRepFashionParams onRepParams = {};
+        onRepParams.OldFashionID = oldFashion;
+        CallProcessEvent(character, onRepFashion, &onRepParams, log);
+        LogCharacterAppearanceState(character, "after OnRep_FashionID", log);
+
+        CallResetCharacterMesh(character, false, log);
+        LogCharacterAppearanceState(character, "after ResetCharacterMesh(false)", log);
+        RefreshDynamicAttachedMeshTags(character, targetAppearance, log);
+        LogCharacterAppearanceState(character, "after attached mesh tag refresh", log);
+
+        g_LastFashionId = target.RowName;
+
+        LogLine(log, "skip BPOnBuildCharacterMeshFinish: direct manual call raised protected SEH in previous run");
+    }
+
     void RunFashionSwapOnGameThread(int direction)
     {
         std::ofstream log = OpenAppendLog();
@@ -294,29 +325,58 @@ namespace CurrentFashionSetter
             return;
         }
 
-        SDK::UHTPlayerAppearance* targetAppearance = LoadTargetAppearance(target, log);
-        LogTargetAppearanceDetails(targetAppearance, log);
-        if (!IsPlayerAppearanceObject(targetAppearance))
+        ApplyFashionCandidateToCharacter(character, oldFashion, target, log);
+        LogLine(log, "done");
+    }
+
+    void ApplyFashionById(const SDK::FName& targetFashionId)
+    {
+        std::ofstream log = OpenAppendLog();
+        LogLine(log, "ApplyFashionById target=" + targetFashionId.ToString());
+
+        SDK::FName::InitInternal();
+        SDK::UObject::GObjects.GetTypedPtr();
+
+        SDK::AHTPlayerCharacter* character = GetCurrentPlayerCharacter(log);
+        if (character == nullptr)
         {
-            LogLine(log, "target appearance is unavailable; skip fashion apply to avoid host fatal exit");
             return;
         }
 
-        SyncCharacterAppearanceFields(character, target, targetAppearance, log);
-        LogCharacterAppearanceState(character, "after direct field sync", log);
+        const SDK::FName oldFashion = character->FashionID;
+        const SDK::FName characterId = character->DefaultCharacterID;
+        LogLine(log, "CharacterID=" + characterId.ToString());
+        LogLine(log, "OldFashionID=" + oldFashion.ToString());
+        LogCharacterAppearanceState(character, "before", log);
 
-        SDK::UFunction* onRepFashion = character->Class->GetFunction("HTPlayerCharacter", "OnRep_FashionID");
-        OnRepFashionParams onRepParams = {};
-        onRepParams.OldFashionID = oldFashion;
-        CallProcessEvent(character, onRepFashion, &onRepParams, log);
-        LogCharacterAppearanceState(character, "after OnRep_FashionID", log);
+        FashionCandidate defaultCandidate = {};
+        SDK::FName defaultFashionId = {};
+        if (!TryConvertStringToName(L"DefaultFashion", defaultFashionId, log))
+        {
+            return;
+        }
+        defaultCandidate.Name = "DefaultFashion";
+        defaultCandidate.RowName = defaultFashionId;
+        defaultCandidate.IsDefault = true;
+        defaultCandidate.DefaultPlayerAppearanceAsset = character->DefaultPlayerAppearanceAsset;
+        LogLine(log, "default candidate FashionID=" + defaultCandidate.RowName.ToString()
+            + " PlayerAppearance path=" + SoftObjectPathToString(defaultCandidate.DefaultPlayerAppearanceAsset)
+            + " loaded=" + ObjectName(defaultCandidate.DefaultPlayerAppearanceAsset.Get()));
 
-        CallResetCharacterMesh(character, false, log);
-        LogCharacterAppearanceState(character, "after ResetCharacterMesh(false)", log);
-        RefreshDynamicAttachedMeshTags(character, targetAppearance, log);
-        LogCharacterAppearanceState(character, "after attached mesh tag refresh", log);
+        SDK::UDataTable* appearanceTable = FindAppearanceDataTable(characterId, log);
+        if (appearanceTable == nullptr)
+        {
+            return;
+        }
 
-        LogLine(log, "skip BPOnBuildCharacterMeshFinish: direct manual call raised protected SEH in previous run");
+        FashionCandidate target = {};
+        if (!FindFashionCandidateById(appearanceTable, characterId, targetFashionId, &defaultCandidate, target, log))
+        {
+            return;
+        }
+
+        ApplyFashionCandidateToCharacter(character, oldFashion, target, log);
+        g_LastFashionId = targetFashionId;
         LogLine(log, "done");
     }
 }

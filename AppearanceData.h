@@ -24,4 +24,7 @@ namespace CurrentFashionSetter
     bool SelectFashionByDirection(SDK::UDataTable* table, const SDK::FName& characterId,
         const SDK::FName& currentFashionId, const FashionCandidate* defaultCandidate,
         int direction, FashionCandidate& target, std::ofstream& log);
+    bool FindFashionCandidateById(SDK::UDataTable* table, const SDK::FName& characterId,
+        const SDK::FName& targetFashionId, const FashionCandidate* defaultCandidate,
+        FashionCandidate& target, std::ofstream& log);
 }
