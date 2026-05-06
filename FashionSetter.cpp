@@ -223,9 +223,22 @@ namespace CurrentFashionSetter
         }
         memcpy(&character->CurMeshData, &targetAppearance->FashionMeshData, sizeof(character->CurMeshData));
 
+        character->ChangeAvatarData.CharacterID = character->DefaultCharacterID;
+        character->ChangeAvatarData.PlayerAppearance = targetAppearance;
+        if (target.IsDefault)
+        {
+            CopySoftObjectPtrInto(character->ChangeAvatarData.SoftPlayerAppearance, target.DefaultPlayerAppearanceAsset);
+        }
+        else if (target.FashionData != nullptr)
+        {
+            CopySoftObjectPtrInto(character->ChangeAvatarData.SoftPlayerAppearance, target.FashionData->PlayerAppearanceAsset);
+        }
+
         LogLine(log, "direct appearance field sync applied target=" + target.RowName.ToString()
             + " mesh=" + ObjectName(targetAppearance->FashionMeshData.CharacterMesh)
-            + " anim=" + ObjectName(targetAppearance->FashionMeshData.AnimInstance));
+            + " anim=" + ObjectName(targetAppearance->FashionMeshData.AnimInstance)
+            + " ChangeAvatarData.CharacterID=" + character->ChangeAvatarData.CharacterID.ToString()
+            + " ChangeAvatarData.PlayerAppearance=" + ObjectName(character->ChangeAvatarData.PlayerAppearance));
     }
 
     void RefreshDynamicAttachedMeshTags(SDK::AHTPlayerCharacter* character, SDK::UHTPlayerAppearance* appearance, std::ofstream& log)
@@ -247,6 +260,37 @@ namespace CurrentFashionSetter
             LogLine(log, "refresh attached mesh tag=" + extra.TagName.ToString());
             CallNameTagFunction(character, "ClearCharacterAttachedMeshByTag", extra.TagName, log);
             CallNameTagFunction(character, "SetCharacterAttachedMeshByTag", extra.TagName, log);
+        }
+    }
+
+    void RefreshPreviewWidgetCharacter(SDK::AHTPlayerCharacter* character, const SDK::FName& fashionId, std::ofstream& log)
+    {
+        const int count = SDK::UObject::GObjects->Num();
+
+        for (int index = 0; index < count; ++index)
+        {
+            SDK::UObject* object = SDK::UObject::GObjects->GetByIndex(index);
+            if (!IsValidObject(object) || object->Class->GetName() != "HTPreviewWidgetCharacter")
+            {
+                continue;
+            }
+
+            auto* previewWidget = reinterpret_cast<SDK::UHTPreviewWidgetCharacter*>(object);
+            SDK::UFunction* initPreview = previewWidget->Class->GetFunction("HTPreviewWidgetCharacter", "InitSoloPreview");
+            if (initPreview == nullptr)
+            {
+                continue;
+            }
+
+            SDK::Params::HTPreviewWidgetCharacter_InitSoloPreview params = {};
+            params.InCharacterInfo.ItemID = character->DefaultCharacterID;
+            params.InCharacterInfo.ItemNetID = character->UniqueID;
+            params.InCharacterInfo.FashionID = fashionId;
+
+            LogLine(log, "RefreshPreviewWidgetCharacter widget=" + PointerString(object)
+                + " CharacterID=" + character->DefaultCharacterID.ToString()
+                + " FashionID=" + fashionId.ToString());
+            CallProcessEvent(previewWidget, initPreview, &params, log);
         }
     }
 
@@ -273,6 +317,8 @@ namespace CurrentFashionSetter
         LogCharacterAppearanceState(character, "after ResetCharacterMesh(false)", log);
         RefreshDynamicAttachedMeshTags(character, targetAppearance, log);
         LogCharacterAppearanceState(character, "after attached mesh tag refresh", log);
+
+        RefreshPreviewWidgetCharacter(character, target.RowName, log);
 
         g_LastFashionId = target.RowName;
 

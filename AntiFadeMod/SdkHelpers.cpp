@@ -36,6 +36,14 @@ SDK::AHTAbilityCharacter* ResolveLocalCharacter(SDK::APlayerController* PlayerCo
 
     return static_cast<SDK::AHTAbilityCharacter*>(Pawn);
 }
+
+void SetResolveState(const char** State, const char* Value)
+{
+    if (State != nullptr)
+    {
+        *State = Value;
+    }
+}
 }
 
 SDK::UClass* FindClassByName(const char* ClassName)
@@ -73,46 +81,46 @@ FLocalContext ResolveLocalContext(const char** State)
     SDK::UWorld* World = static_cast<SDK::UWorld*>(SDK::InSDKUtils::GetGWorld());
     if (World == nullptr)
     {
-        *State = "waiting for GWorld";
+        SetResolveState(State, "waiting for GWorld");
         return Context;
     }
 
     SDK::UGameInstance* GameInstance = World->OwningGameInstance;
     if (GameInstance == nullptr)
     {
-        *State = "waiting for GameInstance";
+        SetResolveState(State, "waiting for GameInstance");
         return Context;
     }
 
     if (!GameInstance->LocalPlayers.IsValidIndex(0))
     {
-        *State = "waiting for LocalPlayer[0]";
+        SetResolveState(State, "waiting for LocalPlayer[0]");
         return Context;
     }
 
     SDK::ULocalPlayer* LocalPlayer = GameInstance->LocalPlayers[0];
     if (LocalPlayer == nullptr)
     {
-        *State = "LocalPlayer[0] is null";
+        SetResolveState(State, "LocalPlayer[0] is null");
         return Context;
     }
 
     Context.PlayerController = LocalPlayer->PlayerController;
     if (Context.PlayerController == nullptr)
     {
-        *State = "waiting for PlayerController";
+        SetResolveState(State, "waiting for PlayerController");
         return Context;
     }
 
     Context.CameraManager = static_cast<SDK::AHTPlayerCameraManager*>(Context.PlayerController->PlayerCameraManager);
     if (Context.CameraManager == nullptr)
     {
-        *State = "waiting for HTPlayerCameraManager";
+        SetResolveState(State, "waiting for HTPlayerCameraManager");
         return Context;
     }
 
     Context.Character = ResolveLocalCharacter(Context.PlayerController);
-    *State = "ready";
+    SetResolveState(State, "ready");
     return Context;
 }
 
