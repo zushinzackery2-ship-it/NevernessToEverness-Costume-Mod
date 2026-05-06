@@ -18,8 +18,10 @@ namespace CurrentFashionSetter
     {
         constexpr int kUpDirection = -1;
         constexpr int kDownDirection = 1;
+        constexpr ULONGLONG kMaintainModsIntervalMs = 300;
 
         volatile LONG g_PendingDirection = 0;
+        ULONGLONG g_LastMaintainModsTick = 0;
 
         struct ScopedSdkExecutorDepth
         {
@@ -177,7 +179,12 @@ namespace CurrentFashionSetter
 
         void CALLBACK PostRenderCallback(SDK::UGameViewportClient*, SDK::UCanvas*, void* context)
         {
-            MaintainMods();
+            const ULONGLONG now = GetTickCount64();
+            if (now - g_LastMaintainModsTick >= kMaintainModsIntervalMs)
+            {
+                g_LastMaintainModsTick = now;
+                MaintainMods();
+            }
 
             auto* monitor = static_cast<KeyMonitorContext*>(context);
             if (monitor == nullptr)
