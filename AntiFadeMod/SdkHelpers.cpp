@@ -112,13 +112,23 @@ FLocalContext ResolveLocalContext(const char** State)
         return Context;
     }
 
-    Context.CameraManager = static_cast<SDK::AHTPlayerCameraManager*>(Context.PlayerController->PlayerCameraManager);
-    if (Context.CameraManager == nullptr)
+    SDK::APlayerCameraManager* PlayerCameraManager = Context.PlayerController->PlayerCameraManager;
+    if (PlayerCameraManager == nullptr)
     {
         SetResolveState(State, "waiting for HTPlayerCameraManager");
         return Context;
     }
 
+    SDK::UClass* CameraManagerClass = FindClassByName("HTPlayerCameraManager");
+    if (PlayerCameraManager->Class == nullptr
+        || CameraManagerClass == nullptr
+        || !IsClassOrChildOf(PlayerCameraManager->Class, CameraManagerClass))
+    {
+        SetResolveState(State, "PlayerCameraManager is not HTPlayerCameraManager");
+        return Context;
+    }
+
+    Context.CameraManager = static_cast<SDK::AHTPlayerCameraManager*>(PlayerCameraManager);
     Context.Character = ResolveLocalCharacter(Context.PlayerController);
     SetResolveState(State, "ready");
     return Context;

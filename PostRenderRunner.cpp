@@ -12,6 +12,8 @@
 namespace CurrentFashionSetter
 {
     volatile bool g_AntiFadeEverApplied = false;
+    SDK::APlayerController* g_LastAntiFadePlayerController = nullptr;
+    SDK::AHTPlayerCameraManager* g_LastAntiFadeCameraManager = nullptr;
     std::unordered_map<std::string, SDK::FName> g_LastFashionByCharacter;
 
     namespace
@@ -107,42 +109,67 @@ namespace CurrentFashionSetter
             InterlockedExchange(&context->Busy, 0);
         }
 
-        bool IsAntiFadeIntact(SDK::AHTPlayerCameraManager* cm)
+        bool IsAntiFadeIntactGuarded(SDK::AHTPlayerCameraManager* cameraManager)
         {
-            if (cm == nullptr)
+            if (cameraManager == nullptr)
             {
                 return false;
             }
 
-            return cm->RunSettings.PlayerFadeDistance.TargetValue == 0.0f
-                && cm->RunSettings.PlayerHideDistance.TargetValue == 0.0f;
-        }
-
-        void RunAntiFadeOnce()
-        {
-            const char* State = nullptr;
-            const AntiFadeMod::FLocalContext Context = AntiFadeMod::ResolveLocalContext(&State);
-            if (Context.CameraManager == nullptr)
-            {
-                return;
-            }
-
+            DWORD exceptionCode = ERROR_SUCCESS;
+            bool intact = false;
             __try
             {
-                AntiFadeMod::FPatchStats Stats = AntiFadeMod::PatchAllCameraManagers(Context.CameraManager);
-                AntiFadeMod::ApplySelfSettingCamera(Context.CameraManager, Stats);
+                intact = AntiFadeMod::IsCameraManagerAntiFadeIntact(cameraManager);
+            }
+            __except (exceptionCode = GetExceptionCode(), EXCEPTION_EXECUTE_HANDLER)
+            {
+            }
+
+            if (exceptionCode != ERROR_SUCCESS)
+            {
+                char buffer[128] = {};
+                sprintf_s(buffer, "[AntiFadeMod] integrity check SEH exception=0x%08X", exceptionCode);
+                WriteRawLogLine(buffer);
+            }
+
+            return intact;
+        }
+
+        bool RunAntiFadeOnce(const AntiFadeMod::FLocalContext& Context)
+        {
+            if (Context.CameraManager == nullptr)
+            {
+                return false;
+            }
+
+            bool Applied = false;
+            __try
+            {
+                AntiFadeMod::FPatchStats Stats = AntiFadeMod::PatchCurrentCameraManager(Context.CameraManager);
                 AntiFadeMod::RestoreOpacityOnce(Context.Character, Stats);
 
-                if (Stats.CameraManagers > 0 || Stats.SelfSettingCalls > 0)
+                if (Stats.CameraManagers > 0)
                 {
                     AntiFadeMod::PrintStats(Context.CameraManager, Context.Character, Stats);
                     WriteRawLogLine("[AntiFadeMod] patch applied");
                 }
+
+                Applied = IsAntiFadeIntactGuarded(Context.CameraManager);
             }
             __except (EXCEPTION_EXECUTE_HANDLER)
             {
-                WriteRawLogLine("[AntiFadeMod] patch failed with SEH, giving up");
+                WriteRawLogLine("[AntiFadeMod] patch failed with SEH");
             }
+
+            return Applied;
+        }
+
+        void MarkAntiFadeContext(const AntiFadeMod::FLocalContext& Context)
+        {
+            g_AntiFadeEverApplied = true;
+            g_LastAntiFadePlayerController = Context.PlayerController;
+            g_LastAntiFadeCameraManager = Context.CameraManager;
         }
 
         void MaintainMods()
@@ -151,16 +178,36 @@ namespace CurrentFashionSetter
 
             if (ctx.CameraManager != nullptr)
             {
-                if (!g_AntiFadeEverApplied)
+                const bool cameraContextChanged = ctx.CameraManager != g_LastAntiFadeCameraManager
+                    || ctx.PlayerController != g_LastAntiFadePlayerController;
+
+                if (!g_AntiFadeEverApplied || cameraContextChanged)
                 {
-                    RunAntiFadeOnce();
-                    g_AntiFadeEverApplied = true;
+                    if (cameraContextChanged && g_LastAntiFadeCameraManager != nullptr)
+                    {
+                        WriteRawLogLine("[AntiFadeMod] camera context changed, re-patching");
+                    }
+
+                    if (RunAntiFadeOnce(ctx))
+                    {
+                        MarkAntiFadeContext(ctx);
+                    }
                 }
-                else if (!IsAntiFadeIntact(ctx.CameraManager))
+                else if (!IsAntiFadeIntactGuarded(ctx.CameraManager))
                 {
                     WriteRawLogLine("[AntiFadeMod] drift detected, re-patching");
-                    RunAntiFadeOnce();
+                    if (RunAntiFadeOnce(ctx))
+                    {
+                        MarkAntiFadeContext(ctx);
+                    }
                 }
+            }
+            else if (g_LastAntiFadeCameraManager != nullptr)
+            {
+                WriteRawLogLine("[AntiFadeMod] camera context lost");
+                g_AntiFadeEverApplied = false;
+                g_LastAntiFadePlayerController = nullptr;
+                g_LastAntiFadeCameraManager = nullptr;
             }
 
             if (ctx.Character != nullptr)

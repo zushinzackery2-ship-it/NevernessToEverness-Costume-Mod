@@ -15,7 +15,7 @@ struct FPatchStats
     int UnableFadeClassesAdded = 0;
     int UnableFadeClassesAlreadyPresent = 0;
     int UnableFadeAddNoSlack = 0;
-    int SelfSettingCalls = 0;
+    int CachedDistanceValuesCleared = 0;
     int FunctionLookupFailures = 0;
     int OpacityRestoreCalls = 0;
     int OpacityQueryCalls = 0;
@@ -24,8 +24,8 @@ struct FPatchStats
 };
 
 void ConfigureDisabledPlayerFade(SDK::FCameraSettings& Settings);
-FPatchStats PatchAllCameraManagers(SDK::AHTPlayerCameraManager* CurrentCameraManager);
-bool ApplySelfSettingCamera(SDK::AHTPlayerCameraManager* CameraManager, FPatchStats& Stats);
+bool IsCameraManagerAntiFadeIntact(SDK::AHTPlayerCameraManager* CameraManager);
+FPatchStats PatchCurrentCameraManager(SDK::AHTPlayerCameraManager* CurrentCameraManager);
 void RestoreOpacityOnce(SDK::AHTAbilityCharacter* Character, FPatchStats& Stats);
 void PrintStats(SDK::AHTPlayerCameraManager* CameraManager, SDK::AHTAbilityCharacter* Character, const FPatchStats& Stats);
 }

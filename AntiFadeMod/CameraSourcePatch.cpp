@@ -186,6 +186,18 @@ void PatchCameraManagerSourceConfig(SDK::AHTPlayerCameraManager* CameraManager, 
         ++Stats.CollisionDurationsCleared;
     }
 
+    if (CameraManager->PlayerFadeDistanceSquare != 0.0f)
+    {
+        CameraManager->PlayerFadeDistanceSquare = 0.0f;
+        ++Stats.CachedDistanceValuesCleared;
+    }
+
+    if (CameraManager->PlayerHideDistanceSquare != 0.0f)
+    {
+        CameraManager->PlayerHideDistanceSquare = 0.0f;
+        ++Stats.CachedDistanceValuesCleared;
+    }
+
     PatchCameraCollisionParams(CameraManager, Stats);
     PatchUnableFadeClasses(CameraManager, Classes, Stats);
 }
@@ -209,40 +221,11 @@ void ConfigureDisabledPlayerFade(SDK::FCameraSettings& Settings)
     Settings.PlayerHideDistance.TargetValue = DisabledHideDistance;
 }
 
-FPatchStats PatchAllCameraManagers(SDK::AHTPlayerCameraManager* CurrentCameraManager)
+FPatchStats PatchCurrentCameraManager(SDK::AHTPlayerCameraManager* CurrentCameraManager)
 {
     FPatchStats Stats{};
     const FClassCache Classes = BuildClassCache();
-
-    if (Classes.CameraManagerClass != nullptr && Classes.CameraManagerClass->DefaultObject != nullptr)
-    {
-        PatchCameraManagerSourceConfig(static_cast<SDK::AHTPlayerCameraManager*>(Classes.CameraManagerClass->DefaultObject), Classes, Stats);
-    }
-
-    SDK::TUObjectArray* Objects = SDK::UObject::GObjects.GetTypedPtr();
-    if (Objects != nullptr && Classes.CameraManagerClass != nullptr)
-    {
-        for (int Index = 0; Index < Objects->Num(); ++Index)
-        {
-            SDK::UObject* Object = Objects->GetByIndex(Index);
-            if (Object == nullptr || Object->Class == nullptr)
-            {
-                continue;
-            }
-
-            if (!IsClassOrChildOf(Object->Class, Classes.CameraManagerClass) || Object == Classes.CameraManagerClass->DefaultObject)
-            {
-                continue;
-            }
-
-            PatchCameraManagerSourceConfig(static_cast<SDK::AHTPlayerCameraManager*>(Object), Classes, Stats);
-        }
-    }
-
-    if (Stats.CameraManagers == 0 && CurrentCameraManager != nullptr)
-    {
-        PatchCameraManagerSourceConfig(CurrentCameraManager, Classes, Stats);
-    }
+    PatchCameraManagerSourceConfig(CurrentCameraManager, Classes, Stats);
 
     return Stats;
 }

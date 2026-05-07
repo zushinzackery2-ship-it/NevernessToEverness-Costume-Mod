@@ -40,39 +40,6 @@ bool QueryOpacity(SDK::AHTAbilityCharacter* Character, float* OutValue, FPatchSt
 }
 }
 
-bool ApplySelfSettingCamera(SDK::AHTPlayerCameraManager* CameraManager, FPatchStats& Stats)
-{
-    if (CameraManager == nullptr)
-    {
-        return false;
-    }
-
-    static SDK::UFunction* Function = nullptr;
-    if (Function == nullptr)
-    {
-        Function = FindFunctionByName(CameraManager->Class, "HTPlayerCameraManager", "SetSelfSettingCamera");
-    }
-
-    if (Function == nullptr)
-    {
-        ++Stats.FunctionLookupFailures;
-        return false;
-    }
-
-    SDK::Params::HTPlayerCameraManager_SetSelfSettingCamera Params{};
-    Params.bUse = true;
-    ConfigureDisabledPlayerFade(Params.CameraSetting);
-
-    if (!CallProcessEvent(CameraManager, Function, &Params))
-    {
-        ++Stats.FunctionLookupFailures;
-        return false;
-    }
-
-    ++Stats.SelfSettingCalls;
-    return true;
-}
-
 void RestoreOpacityOnce(SDK::AHTAbilityCharacter* Character, FPatchStats& Stats)
 {
     if (Character == nullptr)
@@ -117,16 +84,16 @@ void PrintStats(SDK::AHTPlayerCameraManager* CameraManager, SDK::AHTAbilityChara
         Stats.CameraSettings,
         Stats.IndoorMapSettings,
         Stats.AimingMapSettings);
-    std::printf("[AntiFadeMod] curves pitch=%d actor=%d collisionDuration=%d collisionEntries=%d\n",
+    std::printf("[AntiFadeMod] curves pitch=%d actor=%d collisionDuration=%d collisionEntries=%d cachedDistances=%d\n",
         Stats.PlayerPitchCurvesCleared,
         Stats.ActorFadeCurvesCleared,
         Stats.CollisionDurationsCleared,
-        Stats.CollisionParamEntriesChanged);
-    std::printf("[AntiFadeMod] unableFade added=%d present=%d noSlack=%d selfSettingCalls=%d\n",
+        Stats.CollisionParamEntriesChanged,
+        Stats.CachedDistanceValuesCleared);
+    std::printf("[AntiFadeMod] unableFade added=%d present=%d noSlack=%d\n",
         Stats.UnableFadeClassesAdded,
         Stats.UnableFadeClassesAlreadyPresent,
-        Stats.UnableFadeAddNoSlack,
-        Stats.SelfSettingCalls);
+        Stats.UnableFadeAddNoSlack);
     std::printf("[AntiFadeMod] opacity restore=%d queries=%d before=%.3f after=%.3f lookupFailures=%d\n",
         Stats.OpacityRestoreCalls,
         Stats.OpacityQueryCalls,
