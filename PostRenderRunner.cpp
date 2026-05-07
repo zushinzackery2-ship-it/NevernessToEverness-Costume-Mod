@@ -12,7 +12,7 @@
 namespace CurrentFashionSetter
 {
     volatile bool g_AntiFadeEverApplied = false;
-    SDK::FName g_LastFashionId;
+    std::unordered_map<std::string, SDK::FName> g_LastFashionByCharacter;
 
     namespace
     {
@@ -163,15 +163,17 @@ namespace CurrentFashionSetter
                 }
             }
 
-            if (!g_LastFashionId.IsNone() && ctx.Character != nullptr)
+            if (ctx.Character != nullptr)
             {
                 auto* playerChar = static_cast<SDK::AHTPlayerCharacter*>(ctx.Character);
                 if (IsValidObject(reinterpret_cast<SDK::UObject*>(playerChar)))
                 {
-                    if (playerChar->FashionID != g_LastFashionId)
+                    const std::string characterIdStr = playerChar->DefaultCharacterID.ToString();
+                    auto it = g_LastFashionByCharacter.find(characterIdStr);
+                    if (it != g_LastFashionByCharacter.end() && playerChar->FashionID != it->second)
                     {
                         WriteRawLogLine("[FashionDrift] drift detected, re-applying");
-                        ApplyFashionById(g_LastFashionId);
+                        ApplyFashionById(it->second);
                     }
                 }
             }

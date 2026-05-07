@@ -8,7 +8,7 @@
 
 namespace CurrentFashionSetter
 {
-    extern SDK::FName g_LastFashionId;
+    extern std::unordered_map<std::string, SDK::FName> g_LastFashionByCharacter;
 
     struct OnRepFashionParams
     {
@@ -320,7 +320,7 @@ namespace CurrentFashionSetter
 
         RefreshPreviewWidgetCharacter(character, target.RowName, log);
 
-        g_LastFashionId = target.RowName;
+        g_LastFashionByCharacter[character->DefaultCharacterID.ToString()] = target.RowName;
 
         LogLine(log, "skip BPOnBuildCharacterMeshFinish: direct manual call raised protected SEH in previous run");
     }
@@ -418,11 +418,11 @@ namespace CurrentFashionSetter
         FashionCandidate target = {};
         if (!FindFashionCandidateById(appearanceTable, characterId, targetFashionId, &defaultCandidate, target, log))
         {
+            g_LastFashionByCharacter.erase(characterId.ToString());
             return;
         }
 
         ApplyFashionCandidateToCharacter(character, oldFashion, target, log);
-        g_LastFashionId = targetFashionId;
         LogLine(log, "done");
     }
 }
