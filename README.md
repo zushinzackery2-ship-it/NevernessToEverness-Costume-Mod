@@ -4,7 +4,7 @@
 
 **Runtime costume unlocker & anti-blur patch for Neverness to Everness**
 
-*Unlock all costumes without conditions · Disable character blur censorship · Numpad hotkey switching · Single-callback architecture · Exception-safe ProcessEvent*
+*Unlock all costumes without conditions · Disable character blur censorship · Numpad hotkey switching · Single-callback architecture · Exception-safe typed ProcessEvent*
 
 ![C++](https://img.shields.io/badge/C%2B%2B-20-blue?style=flat-square)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20x64-lightgrey?style=flat-square)
@@ -29,6 +29,7 @@
 |:-----|:-----|
 | **动态切换未解锁时装** | 无需氪金/满足解锁条件，自由切换所有角色时装 |
 | **反虚化** | 解除镜头拉低后角色虚化和谐，自由观察角色外观 |
+| **PE 自动内存释放** | 所有项目封装的 ProcessEvent 调用均走 typed SDK wrapper，PE 返回值/out 参数容器由生成 SDK 自动接管释放 |
 
 ---
 
@@ -104,6 +105,16 @@ CurrentFashionSetter/
 
 ---
 
+## SDK ProcessEvent 内存策略
+
+- 项目侧 `CurrentFashionSetter::CallProcessEvent` 与 `AntiFadeMod::CallProcessEvent` 只保留 typed template 入口。
+- `void*` 参数版本已显式删除，防止绕过 SDK 的 `ProcessEvent<ParamsType>()` 自动所有权登记。
+- PE 成功返回后，生成 SDK 会对带 `MarkOwnedStorage()` 的参数结构体登记返回值/out 参数容器。
+- 正常调用路径下不需要业务代码手动调用 `FreeGameOwnedStorage()` 或 `ReleaseOwnedStorage()`。
+- 原有稳定性保护仍保留：PostRender/game-thread 路径、SEH、防崩溃日志、`FunctionFlags` 恢复。
+
+---
+
 ## 依赖
 
 - Dumper — UE SDK 生成工具（对目标游戏生成 C++ SDK）
@@ -117,6 +128,7 @@ CurrentFashionSetter/
 
 - **PostRender 回调合并** — AntiFade 与换装回调合二为一，消除冗余注册/注销
 - **AntiFade 一次性保障** — 全退出路径（null / 成功 / stats=0 / SEH crash）均标记完成，杜绝无限重试
+- **typed ProcessEvent 自动释放** — PE 参数不再擦成 `void*`，返回值/out 参数容器交由生成 SDK 自动释放
 - **CallProcessEvent 统一** — 两个 ProcessEvent 包装器统一为 `__finally` 守卫模式，确保 FunctionFlags 必恢复
 - **FindClassByName 优化** — AntiFade 侧换用 SDK hash 查找，替代 O(n) 全量 GObjects 扫描
 - **角色解析 fallback** — Pawn 解析链路统一，AcknowledgedPawn → Pawn fallback 对齐
