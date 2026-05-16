@@ -165,27 +165,4 @@ SDK::UFunction* FindFunctionByName(const SDK::UClass* ObjectClass, const char* C
     return nullptr;
 }
 
-bool CallProcessEvent(SDK::UObject* Object, SDK::UFunction* Function, void* Params)
-{
-    if (Object == nullptr || Function == nullptr)
-    {
-        return false;
-    }
-
-    const uint32_t OriginalFlags = Function->FunctionFlags;
-    bool Called = false;
-
-    __try
-    {
-        Function->FunctionFlags |= 0x400;
-        Object->ProcessEvent(Function, Params);
-        Called = true;
-    }
-    __finally
-    {
-        Function->FunctionFlags = OriginalFlags;
-    }
-
-    return Called;
-}
 }
