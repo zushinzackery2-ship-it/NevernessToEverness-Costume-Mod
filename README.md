@@ -111,7 +111,8 @@ CurrentFashionSetter/
 - `void*` 参数版本已显式删除，防止绕过 SDK 的 `ProcessEvent<ParamsType>()` 自动所有权登记。
 - PE 成功返回后，生成 SDK 会对带 `MarkOwnedStorage()` 的参数结构体登记返回值/out 参数容器。
 - 正常调用路径下不需要业务代码手动调用 `FreeGameOwnedStorage()` 或 `ReleaseOwnedStorage()`。
-- 原有稳定性保护仍保留：PostRender/game-thread 路径、SEH、防崩溃日志、`FunctionFlags` 恢复。
+- 原有稳定性保护仍保留：PostRender/game-thread executor 路径、局部 SEH、防崩溃日志、`FunctionFlags` 异常恢复。
+- `AntiFadeMod::CallProcessEvent` 与主换装链路一致，非 executor 上下文会直接阻断并记录日志；MSVC C++ exception 继续向外传播，不被 SEH 包装器吞掉。
 
 ---
 
@@ -129,7 +130,7 @@ CurrentFashionSetter/
 - **PostRender 回调合并** — AntiFade 与换装回调合二为一，消除冗余注册/注销
 - **AntiFade 一次性保障** — 全退出路径（null / 成功 / stats=0 / SEH crash）均标记完成，杜绝无限重试
 - **typed ProcessEvent 自动释放** — PE 参数不再擦成 `void*`，返回值/out 参数容器交由生成 SDK 自动释放
-- **CallProcessEvent 统一** — 两个 ProcessEvent 包装器统一为 `__finally` 守卫模式，确保 FunctionFlags 必恢复
+- **CallProcessEvent 统一** — 两个 ProcessEvent 包装器统一 typed + executor guard + SEH + `__finally` 守卫，确保 FunctionFlags 必恢复
 - **FindClassByName 优化** — AntiFade 侧换用 SDK hash 查找，替代 O(n) 全量 GObjects 扫描
 - **角色解析 fallback** — Pawn 解析链路统一，AcknowledgedPawn → Pawn fallback 对齐
 
